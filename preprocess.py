@@ -9,6 +9,7 @@ class Preprocessor:
         self.rms = RunningMeanStd(shape=(1,) + self.shape)
 
     def __call__(self, x):
+        x = x * 1/255.
         x = np.asarray(x).reshape(x.shape[0], *self.shape)
         self.rms.update(x)
         x = x - self.rms.mean

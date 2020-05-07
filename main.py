@@ -11,13 +11,13 @@ parser = argparse.ArgumentParser(description='Feudal Nets')
 # GENERIC RL/MODEL PARAMETERS
 parser.add_argument('--lr', type=float, default=0.0005,
                     help='learning rate')
-parser.add_argument('--env-name', type=str, default='BreakoutNoFrameskip-v0',
+parser.add_argument('--env-name', type=str, default='MiniGrid-FourRooms-v0',
                     help='gym environment name')
 parser.add_argument('--num-workers', type=int, default=16,
                     help='number of parallel environments to run')
 parser.add_argument('--num-steps', type=int, default=400,
                     help='number of steps the agent takes before updating')
-parser.add_argument('--max-steps', type=int, default=int(1e8),
+parser.add_argument('--max-steps', type=int, default=int(15e6),
                     help='maximum number of training steps in total')
 parser.add_argument('--cuda', type=bool, default=True,
                     help='Add cuda')
@@ -33,13 +33,13 @@ parser.add_argument('--hidden-dim-manager', type=int, default=256,
                     help='Hidden dim (d)')
 parser.add_argument('--hidden-dim-worker', type=int, default=16,
                     help='Hidden dim for worker (k)')
-parser.add_argument('--gamma-w', type=float, default=0.99,
+parser.add_argument('--gamma-w', type=float, default=0.95,
                     help="discount factor worker")
-parser.add_argument('--gamma-m', type=float, default=0.999,
+parser.add_argument('--gamma-m', type=float, default=0.99,
                     help="discount factor manager")
-parser.add_argument('--alpha', type=float, default=0.5,
+parser.add_argument('--alpha', type=float, default=0.9,
                     help='Intrinsic reward coefficient in [0, 1]')
-parser.add_argument('--eps', type=float, default=int(1e-5),
+parser.add_argument('--eps', type=float, default=0.00001,
                     help='Random Gausian goal for exploration')
 parser.add_argument('--dilation', type=int, default=10,
                     help='Dilation parameter for manager LSTM.')

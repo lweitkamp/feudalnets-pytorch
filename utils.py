@@ -2,7 +2,9 @@
 This file is filled with miscelaneous classes and functions.
 """
 import gym
-from gym.wrappers import AtariPreprocessing, TransformReward
+from gym.wrappers import TransformReward
+from gym_minigrid.wrappers import AgentCentricWrapper, \
+    LeftRightUpDownActionsWrapper, ObservationWrapper
 
 import torch
 import numpy as np
@@ -36,34 +38,17 @@ class ReturnWrapper(gym.Wrapper):
         return obs, reward, done, info
 
 
-def basic_wrapper(env):
-    """Use this as a wrapper only for cartpole etc."""
-    env = ReturnWrapper(env)
-    env = TransformReward(env, lambda r: np.clip(r, -1, 1))
-    return env
-
-
-def atari_wrapper(env):
-    # This is substantially the same CNN as in (Mnih et al., 2016; 2015),
-    # the only difference is that in the pre-processing stage
-    # we retain all colour channels.
-    env = AtariPreprocessing(env, grayscale_obs=False, scale_obs=True)
+def minigrid_wrapper(env):
+    env = ObservationWrapper(env)
+    env = AgentCentricWrapper(env, view_size_local=7)
+    env = LeftRightUpDownActionsWrapper(env)
     env = ReturnWrapper(env)
     env = TransformReward(env, lambda r: np.sign(r))
     return env
 
 
 def make_envs(env_name, num_envs, seed=0):
-    env_ = gym.make(env_name)
-    is_atari = hasattr(gym.envs, 'atari') and isinstance(
-            env_.unwrapped, gym.envs.atari.atari_env.AtariEnv)
-
-    if is_atari:
-        wrapper_fn = atari_wrapper
-    else:
-        wrapper_fn = basic_wrapper
-
-    envs = gym.vector.make(env_name, num_envs, wrappers=wrapper_fn)
+    envs = gym.vector.make(env_name, num_envs, wrappers=minigrid_wrapper)
     envs.seed(seed)
     return envs
 

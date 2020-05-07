@@ -120,7 +120,7 @@ class Perception(nn.Module):
                 nn.Conv2d(16, 32, kernel_size=4, stride=2),
                 nn.ReLU(),
                 nn.modules.Flatten(),
-                nn.Linear(32*9*9, d),
+                nn.Linear(32*7*7, d),
                 nn.ReLU())
 
     def forward(self, x):
@@ -318,6 +318,8 @@ def feudal_loss(storage, next_v_m, next_v_w, args):
                   'loss/value_manager': value_m_loss.item(),
                   'worker/entropy': entropy.item(),
                   'worker/advantage': advantage_w.mean().item(),
+                  'worker/value': value_w.mean().item(),
                   'worker/intrinsic_reward': rewards_intrinsic.mean().item(),
                   'manager/cosines': state_goal_cosines.mean().item(),
-                  'manager/advantage': advantage_m.mean().item()}
+                  'manager/advantage': advantage_m.mean().item(),
+                  'manager/value': value_m.mean().item()}
