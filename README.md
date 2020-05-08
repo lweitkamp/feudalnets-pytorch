@@ -23,6 +23,16 @@ additional experiments.
 Run the following to train for 100 million frames on BreakoutNoFrameskip-v4:
 ```python main.py```
 
+If instead you would like to test it out on a non-pixel based task such as
+CartPole, you need to run
+
+
+```python main.py --mlp 1 --env-name CartPole-v0```
+
+
+And you probably want to adjust the number of max_frames.
+
+
 You can use this repository however you like as long as you cite me somewhere.
 
 ## Differences in implementation
