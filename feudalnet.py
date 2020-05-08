@@ -17,6 +17,7 @@ class FeudalNetwork(nn.Module):
                  time_horizon=10,
                  dilation=10,
                  device='cpu',
+                 mlp=False,
                  args=None):
         """naming convention inside the FeudalNetwork is selected
         to match paper variable naming convention.
@@ -31,8 +32,8 @@ class FeudalNetwork(nn.Module):
         self.n_actions = n_actions
         self.device = device
 
-        self.preprocessor = Preprocessor(shape=input_dim, device=device)
-        self.percept = Perception(input_dim[-1], self.d)
+        self.preprocessor = Preprocessor(input_dim, device, mlp)
+        self.percept = Perception(input_dim[-1], self.d, mlp)
         self.manager = Manager(self.c, self.d, self.r, args, device)
         self.worker = Worker(self.b, self.c, self.d, self.k, n_actions, device)
 

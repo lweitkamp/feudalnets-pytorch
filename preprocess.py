@@ -3,8 +3,11 @@ import torch
 
 
 class Preprocessor:
-    def __init__(self, shape, device='cpu'):
-        self.shape = (shape[-1], shape[0], shape[1])
+    def __init__(self, shape, device='cpu', mlp=False):
+        if mlp:
+            self.shape = (shape[-1], )
+        else:
+            self.shape = (shape[-1], shape[0], shape[1])
         self.device = device
         self.rms = RunningMeanStd(shape=(1,) + self.shape)
 
