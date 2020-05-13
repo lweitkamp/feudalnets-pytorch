@@ -90,11 +90,11 @@ class FeudalNetwork(nn.Module):
 
         return action_dist, goals, states, value_m, value_w
 
-    def intrinsic_reward(self, states, goals):
-        return self.worker.intrinsic_reward(states, goals)
+    def intrinsic_reward(self, states, goals, masks):
+        return self.worker.intrinsic_reward(states, goals, masks)
 
-    def state_goal_cosine(self, states, goals):
-        return self.manager.state_goal_cosine(states, goals)
+    def state_goal_cosine(self, states, goals, masks):
+        return self.manager.state_goal_cosine(states, goals, masks)
 
     def repackage_hidden(self):
         def repackage_rnn(x):
@@ -102,6 +102,13 @@ class FeudalNetwork(nn.Module):
 
         self.hidden_w = repackage_rnn(self.hidden_w)
         self.hidden_m = repackage_rnn(self.hidden_m)
+
+    def init_obj(self):
+        template = torch.zeros(self.b, self.d)
+        goals = [torch.zeros_like(template).to(self.device) for _ in range(2*self.c+1)]
+        states = [torch.zeros_like(template).to(self.device) for _ in range(2*self.c+1)]
+        masks = [torch.ones(self.b, 1).to(self.device) for _ in range(2*self.c+1)]
+        return goals, states, masks
 
 
 class Perception(nn.Module):
@@ -159,7 +166,7 @@ class Manager(nn.Module):
 
         return goal, hidden, state, value_est
 
-    def state_goal_cosine(self, states, goals):
+    def state_goal_cosine(self, states, goals, masks):
         """For the manager, we update using the cosine of:
             cos( S_{t+c} - S_{t}, G_{t} )
 
@@ -176,8 +183,11 @@ class Manager(nn.Module):
                         the difference state s_{t+c} - s_{t},
                         the goal embedding at timestep t g_t(theta).
         """
-        t = self.c + 1
-        return d_cos(states[t + self.c] - states[t], goals[t]).unsqueeze(1)
+        t = self.c
+        mask = torch.stack(masks[t: t + self.c - 1]).prod(dim=0)
+        cosine_dist = d_cos(states[t + self.c] - states[t], goals[t])
+        cosine_dist = mask * cosine_dist.unsqueeze(-1)
+        return cosine_dist
 
 
 class Worker(nn.Module):
@@ -225,7 +235,7 @@ class Worker(nn.Module):
 
         return a, hidden, value_est
 
-    def intrinsic_reward(self, states, goals):
+    def intrinsic_reward(self, states, goals, masks):
         """To calculate the intrinsic reward for the Worker (Eq. 8),
         we look at the horizon C, and for each horizon step i, we
         take current state s_t minus horizon state s_{t-i} and
@@ -250,14 +260,18 @@ class Worker(nn.Module):
         Returns:
             Intrinsic reward for the Worker
         """
-        t = self.c + 1
+        t = self.c
+        r_i = torch.zeros(self.b, 1).to(self.device)
+        mask = torch.ones(self.b, 1).to(self.device)
 
-        r_i = torch.zeros(self.b).to(self.device)
         for i in range(1, self.c + 1):
-            r_i += d_cos(states[t] - states[t - i], goals[t - i].detach())
+            r_i_t = d_cos(states[t] - states[t - i], goals[t - i]).unsqueeze(-1)
+            r_i += (mask * r_i_t)
 
-        r_i = r_i.unsqueeze(1)
-        return (1/self.c) * r_i
+            mask = mask * masks[t - i]
+
+        r_i = r_i.detach()
+        return r_i / self.c
 
 
 def feudal_loss(storage, next_v_m, next_v_w, args):
@@ -304,12 +318,12 @@ def feudal_loss(storage, next_v_m, next_v_w, args):
     loss_manager = (state_goal_cosines * advantage_m.detach()).mean()
 
     # Update the critics into the right direction
-    value_w_loss = 0.5 * (ret_w - value_w).pow(2).mean()
-    value_m_loss = 0.5 * (ret_m - value_m).pow(2).mean()
+    value_w_loss = 0.5 * advantage_w.pow(2).mean()
+    value_m_loss = 0.5 * advantage_m.pow(2).mean()
 
     entropy = entropy.mean()
 
-    loss = - loss_worker + loss_manager + value_w_loss + value_m_loss \
+    loss = - loss_worker - loss_manager + value_w_loss + value_m_loss \
         - args.entropy_coef * entropy
 
     return loss, {'loss/total_fun_loss': loss.item(),

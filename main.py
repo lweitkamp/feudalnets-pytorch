@@ -85,10 +85,7 @@ def experiment(args):
 
     optimizer = torch.optim.RMSprop(feudalnet.parameters(), lr=args.lr,
                                     alpha=0.99, eps=1e-5)
-    mask = torch.ones(args.num_workers, 1).to(device)
-    goals, states = init_obj(
-        args.num_workers, args.hidden_dim_manager, 2 * args.time_horizon + 1,
-        device)
+    goals, states, masks = feudalnet.init_obj()
 
     x = envs.reset()
     step = 0
@@ -104,25 +101,25 @@ def experiment(args):
 
         for _ in range(args.num_steps):
             action_dist, goals, states, value_m, value_w \
-                 = feudalnet(x, goals, states, mask)
-
-            # If an environment is done, we zero out the goal
-            goals[-1] = goals[-1] * mask
+                 = feudalnet(x, goals, states, masks[-1])
 
             # Take a step, log the info, get the next state
             action, logp, entropy = take_action(action_dist)
             x, reward, done, info = envs.step(action)
             logger.log_episode(info, step)
 
-            mask = torch.FloatTensor(1 - done).unsqueeze(1).to(device)
+            mask = torch.FloatTensor(1 - done).unsqueeze(-1).to(args.device)
+            masks.pop(0)
+            masks.append(mask)
+
             storage.add({
                 'r': torch.FloatTensor(reward).unsqueeze(-1).to(device),
-                'r_i': feudalnet.intrinsic_reward(states, goals),
+                'r_i': feudalnet.intrinsic_reward(states, goals, masks),
                 'v_w': value_w,
                 'v_m': value_m,
                 'logp': logp.unsqueeze(-1),
                 'entropy': entropy.unsqueeze(-1),
-                's_goal_cos': feudalnet.state_goal_cosine(states, goals),
+                's_goal_cos': feudalnet.state_goal_cosine(states, goals, masks),
                 'm': mask
             })
 
